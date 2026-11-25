@@ -1,0 +1,156 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  // For local development you can use "sqlite"
+  // For production (Railway / Vercel) change to "postgresql"
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  mobile    String?  @unique
+  role      String   // Owner, Manager, Cashier
+  password  String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  transactions Transaction[]
+}
+
+model Party {
+  id          String   @id @default(cuid())
+  name        String
+  mobile      String?
+  type        String   // Customer, Supplier, Both
+  address     String?
+  kycDetails  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  transactions Transaction[]
+}
+
+model StockCategory {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  metalType   String   // Gold, Silver
+  fixedPurity Float?
+  isFine      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  mainStock        MainStock?
+  unfixedStock     UnfixedStock?
+  transactionItems TransactionItem[]
+  unfixedEntries   UnfixedEntry[]
+}
+
+model MainStock {
+  id             String   @id @default(cuid())
+  categoryId     String   @unique
+  physicalWeight Float    @default(0)
+  averageCost    Float    @default(0)
+  updatedAt      DateTime @updatedAt
+  category StockCategory @relation(fields: [categoryId], references: [id])
+}
+
+model UnfixedStock {
+  id             String   @id @default(cuid())
+  categoryId     String   @unique
+  physicalWeight Float    @default(0)
+  updatedAt      DateTime @updatedAt
+  category StockCategory @relation(fields: [categoryId], references: [id])
+}
+
+model Transaction {
+  id            String   @id @default(cuid())
+  date          DateTime @default(now())
+  type          String
+  partyId       String?
+  paymentMode   String?
+  totalAmount   Float    @default(0)
+  notes         String?
+  createdById   String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  party         Party?   @relation(fields: [partyId], references: [id])
+  createdBy     User?    @relation(fields: [createdById], references: [id])
+  items         TransactionItem[]
+  unfixedEntry  UnfixedEntry?
+  cashEntries   CashLedger[]
+  bankEntries   BankLedger[]
+  expenses      Expense[]
+}
+
+model TransactionItem {
+  id              String   @id @default(cuid())
+  transactionId   String
+  categoryId      String
+  weight          Float
+  purity          Float?
+  pureWeight      Float?
+  rate            Float
+  premiumDiscount Float    @default(0)
+  amount          Float
+  transaction Transaction   @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  category    StockCategory @relation(fields: [categoryId], references: [id])
+}
+
+model UnfixedEntry {
+  id                 String   @id @default(cuid())
+  transactionId      String   @unique
+  type               String
+  categoryId         String
+  weight             Float
+  status             String   @default("OPEN")
+  fixedTransactionId String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  transaction Transaction   @relation(fields: [transactionId], references: [id])
+  category    StockCategory @relation(fields: [categoryId], references: [id])
+}
+
+model CashLedger {
+  id            String   @id @default(cuid())
+  date          DateTime @default(now())
+  transactionId String?
+  type          String
+  amount        Float
+  balance       Float
+  narration     String?
+  createdAt     DateTime @default(now())
+  transaction Transaction? @relation(fields: [transactionId], references: [id])
+}
+
+model BankLedger {
+  id            String   @id @default(cuid())
+  date          DateTime @default(now())
+  transactionId String?
+  type          String
+  amount        Float
+  balance       Float
+  narration     String?
+  reference     String?
+  createdAt     DateTime @default(now())
+  transaction Transaction? @relation(fields: [transactionId], references: [id])
+}
+
+model Expense {
+  id            String   @id @default(cuid())
+  date          DateTime @default(now())
+  category      String
+  amount        Float
+  paymentMode   String
+  narration     String?
+  transactionId String?
+  createdAt     DateTime @default(now())
+  transaction Transaction? @relation(fields: [transactionId], references: [id])
+}
+
+model Setting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String
+  updatedAt DateTime @updatedAt
+}
